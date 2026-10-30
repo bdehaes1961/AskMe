@@ -209,9 +209,10 @@
         } catch (e) { if (e.message !== 'auth') document.getElementById('err').textContent = e.message; }
       };
       const del = document.getElementById('del');
-      if (del) del.onclick = async () => { if (confirm('Vragenlijst en alle antwoorden verwijderen?')) { await api(`/api/polls/${id}`, { method: 'DELETE' }); location.hash = '#/'; } };
+      const twice = (btn, label, fn) => { let armed = false, t; const old = btn.textContent; btn.onclick = async () => { if (!armed) { armed = true; btn.textContent = label; t = setTimeout(() => { armed = false; btn.textContent = old; }, 4000); return; } clearTimeout(t); btn.disabled = true; await fn(); }; };
+      if (del) twice(del, 'Zeker? Klik nogmaals', async () => { await api(`/api/polls/${id}`, { method: 'DELETE' }); location.hash = '#/'; });
       const reset = document.getElementById('reset');
-      if (reset) reset.onclick = async () => { if (confirm('Alle antwoorden wissen? Dit kan niet ongedaan gemaakt worden.')) { await api(`/api/polls/${id}/reset`, { method: 'POST' }); editView(id); } };
+      if (reset) twice(reset, 'Zeker? Klik nogmaals', async () => { await api(`/api/polls/${id}/reset`, { method: 'POST' }); editView(id); });
     };
     draw();
   }
