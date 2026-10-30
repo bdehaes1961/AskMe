@@ -334,7 +334,7 @@ app.get('/api/public/:id', (req, res) => {
   if (!poll) return res.status(404).json({ error: 'Deze vragenlijst bestaat niet' });
   res.json({
     id: poll.id, title: poll.title, description: poll.description,
-    is_open: poll.is_open, ask_email: poll.ask_email,
+    is_open: poll.is_open, ask_email: poll.ask_email, voted: typeof req.query.voter === 'string' && !!db.prepare('SELECT 1 FROM responses WHERE poll_id = ? AND voter = ?').get(poll.id, req.query.voter),
     questions: poll.questions,
   });
 });
