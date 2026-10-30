@@ -399,7 +399,7 @@ app.post('/api/public/:id/submit', (req, res) => {
 
 // pages
 const pub = path.join(__dirname, 'public');
-app.get('/', (req, res) => res.redirect('/admin'));
+app.get('/', (req, res) => res.type('html').send('<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AskMe</title><link rel="stylesheet" href="/style.css"><body style="display:grid;place-items:center;min-height:100vh;text-align:center;padding:20px"><div><div id="b" style="font-weight:600;font-size:20px;user-select:none;-webkit-user-select:none">AskMe</div><p class="muted">Scan de QR-code om mee te doen.</p></div><script>let n=0,t;document.getElementById("b").onclick=()=>{clearTimeout(t);t=setTimeout(()=>n=0,1500);if(++n>=5)location.href="/admin"};</script></body>'));
 app.get('/admin', (req, res) => res.sendFile(path.join(pub, 'admin.html')));
 app.get('/present/:id', (req, res) => res.sendFile(path.join(pub, 'present.html')));
 app.get('/p/:id', (req, res) => res.sendFile(path.join(pub, 'vote.html')));
