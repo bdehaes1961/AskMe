@@ -1,0 +1,13 @@
+services:
+  askme:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?zet ADMIN_PASSWORD in .env}
+      PUBLIC_URL: ${PUBLIC_URL:-}
+    volumes:
+      - askme-data:/data
+volumes:
+  askme-data:

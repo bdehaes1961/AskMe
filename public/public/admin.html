@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#ffffff">
+<title>AskMe · Beheer</title>
+<link rel="icon" href="/icons/icon-192.png">
+<link rel="stylesheet" href="/style.css">
+<style>
+  .wrap { max-width: 860px; margin: 0 auto; padding: 28px 20px 80px; }
+  .bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; }
+  .brand { font-weight: 600; font-size: 17px; letter-spacing: -0.02em; text-decoration: none; }
+  h1 { font-size: 30px; margin-bottom: 24px; }
+  .head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 24px; }
+  .head h1 { margin: 0; }
+
+  .list { border-top: 1px solid var(--line); }
+  .row { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; padding: 18px 0; border-bottom: 1px solid var(--line); }
+  .row .t { font-weight: 500; font-size: 17px; }
+  .row .m { font-size: 13px; color: var(--muted); margin-top: 2px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .row .acts { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  .pill { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; }
+  .pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #22a35a; }
+  .pill.off::before { background: var(--faint); }
+  .empty { padding: 60px 0; text-align: center; color: var(--muted); }
+
+  .qcard { border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; margin-bottom: 14px; }
+  .qhead { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; }
+  .qhead .num { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; width: 22px; }
+  .qhead select { width: auto; padding: 8px 12px; }
+  .qhead .sp { flex: 1; }
+  .icon { width: 34px; height: 34px; border: 1px solid var(--line); background: #fff; border-radius: 50%; cursor: pointer; display: grid; place-items: center; color: var(--muted); }
+  .icon:hover { color: var(--fg); border-color: var(--fg); }
+  .icon:disabled { opacity: .3; cursor: default; }
+  .opts { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+  .opt { display: flex; gap: 8px; align-items: center; }
+  .opt .k { width: 22px; font-size: 13px; color: var(--faint); text-align: right; font-variant-numeric: tabular-nums; }
+  .opt .input { padding: 9px 12px; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 3px; margin-top: 10px; }
+  .seg button { border: 0; background: none; padding: 7px 16px; border-radius: 999px; cursor: pointer; font-size: 14px; }
+  .seg button.on { background: var(--fg); color: #fff; }
+  .addq { display: flex; gap: 8px; flex-wrap: wrap; margin: 6px 0 30px; }
+  .toggle { display: flex; align-items: center; gap: 10px; cursor: pointer; margin-bottom: 18px; font-size: 15px; }
+  .toggle input { width: 18px; height: 18px; accent-color: #0a0a0a; }
+  .notice { background: var(--soft); border-radius: 10px; padding: 12px 14px; font-size: 14px; margin-bottom: 18px; }
+  .sticky { position: sticky; bottom: 0; background: linear-gradient(transparent, #fff 30%); padding: 24px 0 8px; display: flex; gap: 10px; }
+  .login { max-width: 360px; margin: 18vh auto 0; }
+  .share { display: flex; gap: 8px; align-items: center; margin-bottom: 28px; }
+  .share code { flex: 1; background: var(--soft); border-radius: 10px; padding: 12px 14px; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  @media (max-width: 600px) { .row { grid-template-columns: 1fr; } .row .acts { justify-content: flex-start; } }
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<script>
+(() => {
+  const app = document.getElementById('app');
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const api = async (url, opts = {}) => {
+    const r = await fetch(url, { ...opts, headers: { 'Content-Type': 'application/json' }, body: opts.body ? JSON.stringify(opts.body) : undefined });
+    const d = await r.json().catch(() => ({}));
+    if (r.status === 401) { loginView(); throw new Error('auth'); }
+    if (!r.ok) throw new Error(d.error || 'Fout');
+    return d;
+  };
+  const TYPES = { single: 'Eén keuze', multi: 'Meerdere keuzes', scale: 'Schaal', rank: 'Rangschikken' };
+  const topbar = () => `<div class="bar"><a class="brand" href="#/">AskMe</a><button class="link" id="logout">Uitloggen</button></div>`;
+  const wireTop = () => { const l = document.getElementById('logout'); if (l) l.onclick = async () => { await api('/api/logout', { method: 'POST' }); loginView(); }; };
+
+  function loginView() {
+    app.innerHTML = `<div class="login"><h1>AskMe</h1>
+      <form id="f"><label class="field"><span>Wachtwoord</span><input class="input" type="password" id="pw" autocomplete="current-password" autofocus></label>
+      <div class="error" id="err"></div><button class="btn block">Inloggen</button></form></div>`;
+    document.getElementById('f').onsubmit = async e => {
+      e.preventDefault();
+      const r = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: document.getElementById('pw').value }) });
+      if (!r.ok) { document.getElementById('err').textContent = (await r.json()).error; return; }
+      const next = new URLSearchParams(location.search).get('next');
+      if (next && next.startsWith('/present/')) return location.href = next;
+      route();
+    };
+  }
+
+  async function listView() {
+    const polls = await api('/api/polls');
+    app.innerHTML = `${topbar()}
+      <div class="head"><h1>Vragenlijsten</h1><a class="btn" href="#/new">Nieuwe</a></div>
+      ${polls.length ? `<div class="list">${polls.map(p => `
+        <div class="row">
+          <div><div class="t">${esc(p.title)}</div>
+            <div class="m"><span class="pill ${p.is_open ? '' : 'off'}">${p.is_open ? 'Open' : 'Gesloten'}</span>
+              <span>${p.questions} ${p.questions === 1 ? 'vraag' : 'vragen'}</span><span>${p.responses} antwoorden</span></div></div>
+          <div class="acts">
+            <a class="btn sm" href="/present/${p.id}" target="_blank">Presenteer</a>
+            <a class="btn sm ghost" href="#/edit/${p.id}">Bewerk</a>
+            <button class="btn sm ghost" data-toggle="${p.id}" data-open="${p.is_open ? 0 : 1}">${p.is_open ? 'Sluit' : 'Open'}</button>
+            <a class="btn sm ghost" href="/api/polls/${p.id}/export.csv">CSV</a>
+          </div>
+        </div>`).join('')}</div>` : `<div class="empty">Nog geen vragenlijsten.</div>`}`;
+    wireTop();
+    app.querySelectorAll('[data-toggle]').forEach(b => b.onclick = async () => {
+      await api(`/api/polls/${b.dataset.toggle}/state`, { method: 'POST', body: { open: b.dataset.open === '1' } });
+      listView();
+    });
+  }
+
+  async function editView(id) {
+    let poll = { title: '', description: '', ask_email: true, questions: [{ type: 'single', text: '', options: ['', ''], scale_max: 5 }] };
+    let locked = false, info = null;
+    if (id) {
+      info = await api(`/api/polls/${id}`);
+      poll = { ...info, questions: info.questions.map(q => ({ ...q, scale_max: q.scale_max || 5 })) };
+      locked = info.responses > 0;
+    }
+
+    const draw = () => {
+      app.innerHTML = `${topbar()}
+        <div class="head"><h1>${id ? 'Bewerken' : 'Nieuwe vragenlijst'}</h1>${id ? `<a class="btn sm" href="/present/${id}" target="_blank">Presenteer</a>` : ''}</div>
+        ${id ? `<div class="share"><code>${esc(info.url)}</code><button class="btn sm ghost" id="copy">Kopieer</button></div>` : ''}
+        <label class="field"><span>Titel</span><input class="input" id="title" value="${esc(poll.title)}" placeholder="Bijv. Prioriteiten Q1"></label>
+        <label class="field"><span>Introductie (optioneel)</span><textarea class="input" id="desc" rows="2">${esc(poll.description)}</textarea></label>
+        <label class="toggle"><input type="checkbox" id="askEmail" ${poll.ask_email ? 'checked' : ''}> Vraag optioneel e-mailadres aan het einde</label>
+        ${locked ? `<div class="notice">Er zijn al ${info.responses} antwoorden — vragen zijn vergrendeld. Wis de antwoorden om vragen te wijzigen.</div>` : ''}
+        <div id="qs">${poll.questions.map(qCard).join('')}</div>
+        ${locked ? '' : `<div class="addq">${Object.entries(TYPES).map(([t, l]) => `<button class="btn sm ghost" data-add="${t}">+ ${l}</button>`).join('')}</div>`}
+        <div class="error" id="err"></div>
+        <div class="sticky">
+          <button class="btn" id="save">${id ? 'Opslaan' : 'Aanmaken'}</button>
+          <a class="btn ghost" href="#/">Annuleer</a>
+          ${id ? `<span style="flex:1"></span>${locked ? '<button class="btn danger" id="reset">Wis antwoorden</button>' : ''}<button class="btn danger" id="del">Verwijder</button>` : ''}
+        </div>`;
+      wireTop();
+      wire();
+    };
+
+    const qCard = (q, i) => {
+      const dis = locked ? 'disabled' : '';
+      const n = poll.questions.length;
+      let body = '';
+      if (q.type === 'scale') {
+        body = `<div class="seg">${[5, 10].map(m => `<button data-scale="${m}" class="${q.scale_max === m ? 'on' : ''}" ${dis}>1 – ${m}</button>`).join('')}</div>`;
+      } else {
+        body = `<div class="opts">${q.options.map((o, k) => `
+          <div class="opt"><span class="k">${q.type === 'rank' ? k + 1 + '.' : ''}</span>
+            <input class="input" data-opt="${k}" value="${esc(o)}" placeholder="Optie ${k + 1}" maxlength="120" ${dis}>
+            <button class="icon" data-delopt="${k}" title="Verwijder optie" ${dis || q.options.length <= 2 ? 'disabled' : ''}>×</button></div>`).join('')}
+          ${locked || q.options.length >= 10 ? '' : `<div><button class="link" data-addopt>+ optie toevoegen</button> <span class="muted" style="font-size:13px">(max 10)</span></div>`}
+          ${q.type === 'rank' ? '<div class="muted" style="font-size:13px">Deelnemers slepen deze items in volgorde van belangrijkheid.</div>' : ''}</div>`;
+      }
+      return `<div class="qcard" data-q="${i}">
+        <div class="qhead"><span class="num">${i + 1}</span>
+          <select class="input" data-type ${dis}>${Object.entries(TYPES).map(([t, l]) => `<option value="${t}" ${q.type === t ? 'selected' : ''}>${l}</option>`).join('')}</select>
+          <span class="sp"></span>
+          <button class="icon" data-up title="Omhoog" ${dis || i === 0 ? 'disabled' : ''}>↑</button>
+          <button class="icon" data-down title="Omlaag" ${dis || i === n - 1 ? 'disabled' : ''}>↓</button>
+          <button class="icon" data-delq title="Verwijder vraag" ${dis || n === 1 ? 'disabled' : ''}>×</button></div>
+        <input class="input" data-text value="${esc(q.text)}" placeholder="Stel je vraag" maxlength="300" ${dis}>
+        ${body}</div>`;
+    };
+
+    const collect = () => {
+      poll.title = document.getElementById('title').value;
+      poll.description = document.getElementById('desc').value;
+      poll.ask_email = document.getElementById('askEmail').checked;
+      app.querySelectorAll('.qcard').forEach(c => {
+        const q = poll.questions[+c.dataset.q];
+        q.text = c.querySelector('[data-text]').value;
+        c.querySelectorAll('[data-opt]').forEach(inp => q.options[+inp.dataset.opt] = inp.value);
+      });
+    };
+
+    const wire = () => {
+      const copy = document.getElementById('copy');
+      if (copy) copy.onclick = () => navigator.clipboard.writeText(info.url).then(() => copy.textContent = 'Gekopieerd');
+      app.querySelectorAll('[data-add]').forEach(b => b.onclick = () => {
+        collect();
+        const t = b.dataset.add;
+        poll.questions.push({ type: t, text: '', options: t === 'scale' ? [] : ['', '', ...(t === 'rank' ? [''] : [])], scale_max: 5 });
+        draw();
+        app.querySelector('.qcard:last-child [data-text]').focus();
+      });
+      app.querySelectorAll('.qcard').forEach(c => {
+        const i = +c.dataset.q, q = poll.questions[i];
+        const on = (sel, fn) => c.querySelectorAll(sel).forEach(el => el.onclick = e => { e.preventDefault(); collect(); fn(el); draw(); });
+        c.querySelector('[data-type]').onchange = e => {
+          collect(); q.type = e.target.value;
+          if (q.type !== 'scale' && q.options.length < 2) q.options = ['', ''];
+          draw();
+        };
+        on('[data-up]', () => [poll.questions[i - 1], poll.questions[i]] = [poll.questions[i], poll.questions[i - 1]]);
+        on('[data-down]', () => [poll.questions[i + 1], poll.questions[i]] = [poll.questions[i], poll.questions[i + 1]]);
+        on('[data-delq]', () => poll.questions.splice(i, 1));
+        on('[data-scale]', el => q.scale_max = +el.dataset.scale);
+        on('[data-addopt]', () => q.options.push(''));
+        on('[data-delopt]', el => q.options.splice(+el.dataset.delopt, 1));
+        c.querySelectorAll('[data-opt]').forEach(inp => inp.onkeydown = e => {
+          if (e.key === 'Enter') { e.preventDefault(); collect(); if (q.options.length < 10) { q.options.splice(+inp.dataset.opt + 1, 0, ''); draw(); app.querySelector(`.qcard[data-q="${i}"] [data-opt="${+inp.dataset.opt + 1}"]`).focus(); } }
+        });
+      });
+      document.getElementById('save').onclick = async () => {
+        collect();
+        const body = { title: poll.title, description: poll.description, ask_email: poll.ask_email };
+        if (!locked) body.questions = poll.questions.map(q => ({ type: q.type, text: q.text, options: q.type === 'scale' ? [] : q.options, scale_max: q.scale_max }));
+        try {
+          if (id) await api(`/api/polls/${id}`, { method: 'PUT', body });
+          else { const r = await api('/api/polls', { method: 'POST', body }); location.hash = `#/edit/${r.id}`; return; }
+          location.hash = '#/';
+        } catch (e) { if (e.message !== 'auth') document.getElementById('err').textContent = e.message; }
+      };
+      const del = document.getElementById('del');
+      if (del) del.onclick = async () => { if (confirm('Vragenlijst en alle antwoorden verwijderen?')) { await api(`/api/polls/${id}`, { method: 'DELETE' }); location.hash = '#/'; } };
+      const reset = document.getElementById('reset');
+      if (reset) reset.onclick = async () => { if (confirm('Alle antwoorden wissen? Dit kan niet ongedaan gemaakt worden.')) { await api(`/api/polls/${id}/reset`, { method: 'POST' }); editView(id); } };
+    };
+    draw();
+  }
+
+  async function route() {
+    const me = await fetch('/api/me').then(r => r.json());
+    if (!me.admin) return loginView();
+    const h = location.hash.replace(/^#/, '') || '/';
+    try {
+      if (h === '/new') return await editView(null);
+      const m = h.match(/^\/edit\/([a-z0-9]+)$/);
+      if (m) return await editView(m[1]);
+      await listView();
+    } catch (e) { if (e.message !== 'auth') app.innerHTML = `<p class="error">${esc(e.message)}</p>`; }
+  }
+  window.addEventListener('hashchange', route);
+  route();
+})();
+</script>
+</body>
+</html>

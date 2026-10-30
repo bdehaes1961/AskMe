@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="AskMe">
+<title>AskMe</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icons/icon-192.png">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<link rel="stylesheet" href="/style.css">
+<style>
+  body { min-height: 100dvh; }
+  .app { max-width: 520px; margin: 0 auto; min-height: 100dvh; display: flex; flex-direction: column;
+         padding: max(16px, env(safe-area-inset-top)) 20px max(20px, env(safe-area-inset-bottom)); }
+  header { display: flex; align-items: center; justify-content: space-between; height: 40px; }
+  .brand { font-weight: 600; letter-spacing: -0.02em; font-size: 15px; }
+  .step { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .progress { height: 2px; background: var(--line); border-radius: 2px; margin: 8px 0 0; overflow: hidden; }
+  .progress > i { display: block; height: 100%; width: 0; background: var(--fg); transition: width .35s ease; }
+  main { flex: 1; display: flex; flex-direction: column; padding-top: 36px; }
+  .screen { animation: in .28s ease both; display: flex; flex-direction: column; flex: 1; }
+  @keyframes in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  .kicker { font-size: 13px; color: var(--muted); margin-bottom: 10px; }
+  h1 { font-size: 28px; line-height: 1.15; }
+  h2.q { font-size: 23px; line-height: 1.25; margin-bottom: 6px; }
+  .hint { font-size: 14px; color: var(--muted); margin-bottom: 22px; }
+  .desc { color: var(--muted); margin-top: 12px; white-space: pre-line; }
+  .spacer { flex: 1; min-height: 24px; }
+  .footer { display: flex; gap: 10px; padding-top: 16px; }
+  .footer .btn { flex: 1; }
+  .footer .btn.ghost { flex: 0 0 auto; width: 48px; padding: 0; }
+
+  /* choices */
+  .choices { display: flex; flex-direction: column; gap: 10px; }
+  .choice { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; background: #fff;
+            border: 1px solid var(--line); border-radius: var(--radius); padding: 15px 16px; cursor: pointer;
+            transition: border-color .15s, background .15s; font-size: 16px; }
+  .choice:hover { border-color: #cfcfcf; }
+  .choice .mark { flex: 0 0 22px; height: 22px; border: 1.5px solid #cfcfcf; border-radius: 50%;
+                  display: grid; place-items: center; transition: all .15s; }
+  .choice.multi .mark { border-radius: 6px; }
+  .choice[aria-checked="true"] { border-color: var(--fg); }
+  .choice[aria-checked="true"] .mark { background: var(--fg); border-color: var(--fg); }
+  .choice[aria-checked="true"] .mark::after { content: ""; width: 10px; height: 6px; border: 2px solid #fff;
+            border-top: 0; border-right: 0; transform: rotate(-45deg) translate(1px, -1px); }
+
+  /* scale */
+  .scale { display: grid; gap: 8px; }
+  .scale.s5 { grid-template-columns: repeat(5, 1fr); }
+  .scale.s10 { grid-template-columns: repeat(5, 1fr); }
+  .scale button { aspect-ratio: 1; border: 1px solid var(--line); background: #fff; border-radius: 12px;
+                  font-size: 19px; font-weight: 500; cursor: pointer; font-variant-numeric: tabular-nums; transition: all .15s; }
+  .scale button[aria-checked="true"] { background: var(--fg); color: #fff; border-color: var(--fg); }
+  .scale-legend { display: flex; justify-content: space-between; font-size: 12px; color: var(--faint); margin-top: 10px; }
+
+  /* rank */
+  .rank { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; position: relative; }
+  .rank-item { display: flex; align-items: center; gap: 12px; background: #fff; border: 1px solid var(--line);
+               border-radius: var(--radius); padding: 0 6px 0 12px; height: 54px; touch-action: none; user-select: none;
+               -webkit-user-select: none; cursor: grab; outline: none; }
+  .rank-item:focus-visible { border-color: var(--fg); }
+  .rank-item .n { flex: 0 0 26px; height: 26px; border-radius: 50%; background: var(--soft); font-size: 13px;
+                  font-weight: 600; display: grid; place-items: center; font-variant-numeric: tabular-nums; }
+  .rank-item .t { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rank-item .grip { flex: 0 0 40px; height: 40px; display: grid; place-items: center; color: var(--faint); }
+  .rank-item.dragging { position: fixed; z-index: 10; box-shadow: 0 12px 32px rgba(0,0,0,.12); border-color: var(--fg);
+                        cursor: grabbing; transition: none; }
+  .rank-ph { height: 54px; border: 1px dashed #d4d4d4; border-radius: var(--radius); }
+  .rank.touched .rank-item .n { background: var(--fg); color: #fff; }
+
+  /* states */
+  .center { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; }
+  .check { width: 56px; height: 56px; border-radius: 50%; background: var(--fg); display: grid; place-items: center; margin-bottom: 24px; }
+  .check::after { content: ""; width: 20px; height: 11px; border: 3px solid #fff; border-top: 0; border-right: 0; transform: rotate(-45deg) translate(2px,-2px); }
+  .skeleton { height: 28px; width: 70%; background: var(--soft); border-radius: 8px; margin-top: 40px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand">AskMe</div>
+    <div class="step" id="step"></div>
+  </header>
+  <div class="progress"><i id="bar"></i></div>
+  <main id="main"><div class="skeleton"></div></main>
+</div>
+
+<script>
+(() => {
+  const pollId = location.pathname.split('/').filter(Boolean)[1];
+  const $main = document.getElementById('main');
+  const $step = document.getElementById('step');
+  const $bar = document.getElementById('bar');
+  const store = {
+    get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+  };
+  let voter = store.get('askme:voter');
+  if (!voter) {
+    voter = (crypto.randomUUID ? crypto.randomUUID() : Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2,'0')).join(''));
+    store.set('askme:voter', voter);
+  }
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  let poll, idx = -1;
+  const answers = {};
+  const rankTouched = {};
+
+  function setProgress() {
+    const total = poll.questions.length + (poll.ask_email ? 1 : 0);
+    if (idx < 0) { $step.textContent = ''; $bar.style.width = '0'; return; }
+    const cur = Math.min(idx + 1, total);
+    $step.textContent = idx >= total ? '' : `${cur} / ${total}`;
+    $bar.style.width = (idx >= total ? 100 : (idx / total) * 100) + '%';
+  }
+
+  function render(html) { $main.innerHTML = `<div class="screen">${html}</div>`; window.scrollTo(0, 0); }
+
+  function message(title, body, icon) {
+    $step.textContent = ''; $bar.style.width = '0';
+    render(`<div class="center">${icon ? '<div class="check"></div>' : ''}<h1>${esc(title)}</h1><p class="desc">${esc(body || '')}</p></div>`);
+  }
+
+  async function load() {
+    try {
+      const r = await fetch(`/api/public/${encodeURIComponent(pollId)}`, { cache: 'no-store' });
+      const data = await r.json();
+      if (!r.ok) return message('Niet gevonden', data.error);
+      poll = data;
+      document.title = poll.title + ' · AskMe';
+      if (store.get('askme:done:' + poll.id)) return message('Bedankt', 'Je antwoorden zijn al ontvangen.', true);
+      if (!poll.is_open) return message('Gesloten', 'Stemmen is (nog) niet mogelijk voor deze vragenlijst.');
+      intro();
+    } catch {
+      message('Geen verbinding', 'Controleer je internetverbinding en probeer opnieuw.');
+    }
+  }
+
+  function intro() {
+    idx = -1; setProgress();
+    const n = poll.questions.length;
+    render(`
+      <div class="kicker">${n} ${n === 1 ? 'vraag' : 'vragen'} · minder dan een minuut</div>
+      <h1>${esc(poll.title)}</h1>
+      ${poll.description ? `<p class="desc">${esc(poll.description)}</p>` : ''}
+      <div class="spacer"></div>
+      <div class="footer"><button class="btn block" id="go">Start</button></div>`);
+    document.getElementById('go').onclick = () => go(0);
+  }
+
+  function go(i) {
+    idx = i; setProgress();
+    if (i < poll.questions.length) return question(poll.questions[i]);
+    if (poll.ask_email && i === poll.questions.length) return emailStep();
+    submit();
+  }
+
+  function footer(canNext, label = 'Volgende') {
+    return `<div class="footer">
+      <button class="btn ghost" id="back" aria-label="Terug">←</button>
+      <button class="btn" id="next" ${canNext ? '' : 'disabled'}>${label}</button></div>`;
+  }
+  function wireFooter(isValid) {
+    document.getElementById('back').onclick = () => idx === 0 ? intro() : go(idx - 1);
+    const next = document.getElementById('next');
+    next.onclick = () => { if (isValid()) go(idx + 1); };
+    return () => { next.disabled = !isValid(); };
+  }
+  const isLast = () => idx === poll.questions.length - 1 && !poll.ask_email;
+
+  function question(q) {
+    const hints = { single: 'Kies één antwoord', multi: 'Kies één of meer antwoorden', scale: `Kies een score van 1 tot ${q.scale_max}`, rank: 'Sleep in volgorde van belangrijkheid — bovenaan is het belangrijkst' };
+    let body = '';
+    if (q.type === 'single' || q.type === 'multi') {
+      const sel = answers[q.id];
+      body = `<div class="choices" role="${q.type === 'single' ? 'radiogroup' : 'group'}">` + q.options.map((o, i) => {
+        const on = q.type === 'single' ? sel === i : (sel || []).includes(i);
+        return `<button class="choice ${q.type}" role="${q.type === 'single' ? 'radio' : 'checkbox'}" aria-checked="${on}" data-i="${i}"><span class="mark"></span><span>${esc(o)}</span></button>`;
+      }).join('') + `</div>`;
+    } else if (q.type === 'scale') {
+      body = `<div class="scale s${q.scale_max}" role="radiogroup">` +
+        Array.from({ length: q.scale_max }, (_, k) => `<button role="radio" aria-checked="${answers[q.id] === k + 1}" data-v="${k + 1}">${k + 1}</button>`).join('') +
+        `</div><div class="scale-legend"><span>Helemaal niet</span><span>Helemaal wel</span></div>`;
+    } else {
+      if (!answers[q.id]) answers[q.id] = q.options.map((_, i) => i);
+      body = `<ol class="rank ${rankTouched[q.id] ? 'touched' : ''}" id="rank">` + answers[q.id].map((oi, pos) =>
+        `<li class="rank-item" tabindex="0" data-i="${oi}" aria-label="${esc(q.options[oi])}"><span class="n">${pos + 1}</span><span class="t">${esc(q.options[oi])}</span><span class="grip" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M2 4h10M2 7h10M2 10h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span></li>`
+      ).join('') + `</ol>`;
+    }
+
+    render(`<h2 class="q">${esc(q.text)}</h2><div class="hint">${hints[q.type]}</div>${body}<div class="spacer"></div>${footer(true, isLast() ? 'Verstuur' : 'Volgende')}`);
+
+    const valid = () => {
+      const v = answers[q.id];
+      if (q.type === 'single') return Number.isInteger(v);
+      if (q.type === 'multi') return Array.isArray(v) && v.length > 0;
+      if (q.type === 'scale') return Number.isInteger(v);
+      return Array.isArray(v);
+    };
+    const refresh = wireFooter(valid);
+    refresh();
+
+    if (q.type === 'single' || q.type === 'multi') {
+      $main.querySelectorAll('.choice').forEach(el => el.onclick = () => {
+        const i = +el.dataset.i;
+        if (q.type === 'single') {
+          answers[q.id] = i;
+          $main.querySelectorAll('.choice').forEach(c => c.setAttribute('aria-checked', c === el));
+        } else {
+          const set = new Set(answers[q.id] || []);
+          set.has(i) ? set.delete(i) : set.add(i);
+          answers[q.id] = [...set];
+          el.setAttribute('aria-checked', set.has(i));
+        }
+        refresh();
+      });
+    } else if (q.type === 'scale') {
+      $main.querySelectorAll('.scale button').forEach(el => el.onclick = () => {
+        answers[q.id] = +el.dataset.v;
+        $main.querySelectorAll('.scale button').forEach(b => b.setAttribute('aria-checked', b === el));
+        refresh();
+      });
+    } else {
+      setupRank(document.getElementById('rank'), q);
+    }
+  }
+
+  function setupRank(list, q) {
+    const sync = () => {
+      answers[q.id] = [...list.querySelectorAll('.rank-item')].map(li => +li.dataset.i);
+      list.querySelectorAll('.rank-item .n').forEach((n, k) => n.textContent = k + 1);
+    };
+    const touch = () => { rankTouched[q.id] = true; list.classList.add('touched'); };
+
+    let drag = null;
+    list.addEventListener('pointerdown', e => {
+      const item = e.target.closest('.rank-item');
+      if (!item || e.button > 0) return;
+      e.preventDefault();
+      const r = item.getBoundingClientRect();
+      const ph = document.createElement('li');
+      ph.className = 'rank-ph';
+      item.before(ph);
+      Object.assign(item.style, { width: r.width + 'px', left: r.left + 'px', top: r.top + 'px' });
+      item.classList.add('dragging');
+      item.setPointerCapture(e.pointerId);
+      drag = { item, ph, dy: e.clientY - r.top, y: e.clientY, raf: 0 };
+      if (navigator.vibrate) navigator.vibrate(8);
+      autoscroll();
+    });
+    list.addEventListener('pointermove', e => {
+      if (!drag) return;
+      drag.y = e.clientY;
+      place();
+    });
+    const end = () => {
+      if (!drag) return;
+      cancelAnimationFrame(drag.raf);
+      drag.ph.replaceWith(drag.item);
+      drag.item.classList.remove('dragging');
+      drag.item.removeAttribute('style');
+      drag = null;
+      touch(); sync();
+    };
+    list.addEventListener('pointerup', end);
+    list.addEventListener('pointercancel', end);
+
+    function place() {
+      drag.item.style.top = (drag.y - drag.dy) + 'px';
+      const others = [...list.querySelectorAll('.rank-item:not(.dragging)')];
+      let before = null;
+      for (const o of others) {
+        const r = o.getBoundingClientRect();
+        if (drag.y < r.top + r.height / 2) { before = o; break; }
+      }
+      if (before) { if (drag.ph.nextSibling !== before) list.insertBefore(drag.ph, before); }
+      else if (list.lastElementChild !== drag.ph) list.appendChild(drag.ph);
+    }
+    function autoscroll() {
+      if (!drag) return;
+      const edge = 70, h = window.innerHeight;
+      let d = 0;
+      if (drag.y < edge) d = -Math.ceil((edge - drag.y) / 6);
+      else if (drag.y > h - edge) d = Math.ceil((drag.y - (h - edge)) / 6);
+      if (d) { window.scrollBy(0, d); place(); }
+      drag.raf = requestAnimationFrame(autoscroll);
+    }
+
+    // keyboard: arrows move focused item
+    list.addEventListener('keydown', e => {
+      const item = e.target.closest('.rank-item');
+      if (!item) return;
+      if (e.key === 'ArrowUp' && item.previousElementSibling) { item.previousElementSibling.before(item); }
+      else if (e.key === 'ArrowDown' && item.nextElementSibling) { item.nextElementSibling.after(item); }
+      else return;
+      e.preventDefault(); item.focus(); touch(); sync();
+    });
+  }
+
+  function emailStep() {
+    render(`
+      <h2 class="q">Wil je op de hoogte blijven?</h2>
+      <div class="hint">Optioneel — laat je e-mailadres achter of sla over.</div>
+      <input class="input" id="email" type="email" inputmode="email" autocomplete="email" placeholder="naam@voorbeeld.be" style="height:52px">
+      <div class="error" id="err"></div>
+      <div class="spacer"></div>
+      ${footer(true, 'Verstuur')}`);
+    const input = document.getElementById('email');
+    input.value = answers.__email || '';
+    const btn = document.getElementById('next');
+    const upd = () => { answers.__email = input.value.trim(); btn.textContent = answers.__email ? 'Verstuur' : 'Overslaan en versturen'; };
+    input.oninput = upd; upd();
+    document.getElementById('back').onclick = () => go(idx - 1);
+    btn.onclick = () => {
+      const v = input.value.trim();
+      if (v && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) { document.getElementById('err').textContent = 'Dit lijkt geen geldig e-mailadres.'; return; }
+      go(idx + 1);
+    };
+  }
+
+  async function submit() {
+    $step.textContent = ''; $bar.style.width = '100%';
+    render(`<div class="center"><p class="muted">Versturen…</p></div>`);
+    const body = { voter, email: poll.ask_email ? (answers.__email || '') : '', answers: {} };
+    poll.questions.forEach(q => body.answers[q.id] = answers[q.id]);
+    try {
+      const r = await fetch(`/api/public/${poll.id}/submit`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const data = await r.json().catch(() => ({}));
+      if (r.ok || r.status === 409) {
+        store.set('askme:done:' + poll.id, '1');
+        return message('Bedankt!', r.ok ? 'Je antwoorden zijn ontvangen.' : 'Je had al eerder gestemd.', true);
+      }
+      render(`<div class="center"><h1>Dat lukte niet</h1><p class="desc">${esc(data.error || 'Onbekende fout')}</p></div>
+              <div class="footer"><button class="btn block" id="retry">Opnieuw proberen</button></div>`);
+      document.getElementById('retry').onclick = () => (r.status === 400 ? go(0) : submit());
+    } catch {
+      render(`<div class="center"><h1>Geen verbinding</h1><p class="desc">Je antwoorden zijn nog niet verstuurd.</p></div>
+              <div class="footer"><button class="btn block" id="retry">Opnieuw proberen</button></div>`);
+      document.getElementById('retry').onclick = submit;
+    }
+  }
+
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+  load();
+})();
+</script>
+</body>
+</html>

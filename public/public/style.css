@@ -1,0 +1,48 @@
+:root {
+  --bg: #ffffff;
+  --fg: #0a0a0a;
+  --muted: #737373;
+  --faint: #a3a3a3;
+  --line: #ebebeb;
+  --soft: #f5f5f5;
+  --accent: #0a0a0a;
+  --danger: #d4342c;
+  --radius: 14px;
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color-scheme: light;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font); font-size: 16px; line-height: 1.45; -webkit-font-smoothing: antialiased; }
+button, input, select, textarea { font: inherit; color: inherit; }
+a { color: inherit; }
+h1, h2, h3 { margin: 0; font-weight: 600; letter-spacing: -0.02em; }
+.muted { color: var(--muted); }
+.hidden { display: none !important; }
+
+/* buttons */
+.btn {
+  appearance: none; border: 1px solid var(--fg); background: var(--fg); color: #fff;
+  height: 48px; padding: 0 22px; border-radius: 999px; font-weight: 500; font-size: 15px;
+  cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  transition: opacity .15s, transform .1s; text-decoration: none; white-space: nowrap;
+}
+.btn:active { transform: scale(.98); }
+.btn:disabled { opacity: .25; cursor: default; }
+.btn.ghost { background: transparent; color: var(--fg); border-color: var(--line); }
+.btn.ghost:hover { border-color: var(--fg); }
+.btn.sm { height: 34px; padding: 0 14px; font-size: 13px; }
+.btn.block { width: 100%; }
+.btn.danger { color: var(--danger); border-color: var(--line); background: transparent; }
+.link { background: none; border: 0; padding: 0; cursor: pointer; color: var(--muted); text-decoration: underline; text-underline-offset: 3px; }
+
+/* inputs */
+.field { display: block; margin-bottom: 18px; }
+.field > span { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+.input, textarea.input, select.input {
+  width: 100%; border: 1px solid var(--line); border-radius: 10px; background: #fff;
+  padding: 12px 14px; outline: none; transition: border-color .15s;
+}
+.input:focus { border-color: var(--fg); }
+textarea.input { resize: vertical; min-height: 64px; }
+
+.error { color: var(--danger); font-size: 14px; min-height: 20px; margin: 8px 0; }

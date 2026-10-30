@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AskMe · Presentatie</title>
+<link rel="icon" href="/icons/icon-192.png">
+<link rel="stylesheet" href="/style.css">
+<style>
+  html, body { height: 100%; overflow: hidden; }
+  .stage { height: 100vh; display: grid; grid-template-columns: minmax(300px, 34vw) 1fr; }
+  .stage.noqr { grid-template-columns: 0 1fr; }
+  .stage.noqr .left { display: none; }
+  .left { border-right: 1px solid var(--line); display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 4vh 3vw; text-align: center; }
+  .left .call { font-size: clamp(16px, 1.5vw, 24px); color: var(--muted); margin-bottom: 3vh; }
+  .qr { width: min(26vw, 52vh); aspect-ratio: 1; }
+  .qr svg, .qr img { width: 100%; height: 100%; display: block; }
+  .url { margin-top: 3vh; font-size: clamp(15px, 1.4vw, 22px); font-weight: 500; letter-spacing: -0.01em; word-break: break-all; }
+  .count { margin-top: 4vh; font-size: clamp(40px, 5vw, 80px); font-weight: 600; letter-spacing: -0.04em; font-variant-numeric: tabular-nums; line-height: 1; }
+  .count-l { color: var(--muted); font-size: clamp(13px, 1vw, 16px); margin-top: 6px; }
+  .closed { margin-top: 2vh; display: inline-block; padding: 4px 12px; border: 1px solid var(--fg); border-radius: 999px; font-size: 13px; }
+
+  .right { display: flex; flex-direction: column; padding: 6vh 5vw 4vh; min-width: 0; }
+  .top { display: flex; justify-content: space-between; align-items: baseline; gap: 20px; }
+  .title { font-size: clamp(14px, 1.1vw, 18px); color: var(--muted); }
+  .qnum { font-size: clamp(14px, 1.1vw, 18px); color: var(--muted); font-variant-numeric: tabular-nums; }
+  h1.q { font-size: clamp(28px, 3.2vw, 56px); line-height: 1.12; letter-spacing: -0.03em; margin: 3vh 0 5vh; max-width: 30ch; }
+  .res { flex: 1; display: flex; flex-direction: column; justify-content: flex-start; gap: clamp(10px, 1.8vh, 22px); min-height: 0; }
+
+  .bar-row { display: grid; grid-template-columns: 1fr auto; gap: 6px 20px; align-items: end; }
+  .bar-row .lbl { font-size: clamp(16px, 1.5vw, 26px); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; gap: 14px; align-items: baseline; }
+  .bar-row .lbl .rk { color: var(--faint); font-variant-numeric: tabular-nums; min-width: 1.4em; }
+  .bar-row .val { font-size: clamp(16px, 1.5vw, 26px); font-variant-numeric: tabular-nums; color: var(--muted); }
+  .bar-row .track { grid-column: 1 / -1; height: clamp(8px, 1.2vh, 14px); background: var(--soft); border-radius: 99px; overflow: hidden; }
+  .bar-row .fill { height: 100%; background: var(--fg); border-radius: 99px; width: 0; transition: width .6s cubic-bezier(.2,.8,.2,1); }
+  .bar-row.lead .lbl { font-weight: 600; }
+
+  .scale-wrap { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+  .avg { font-size: clamp(56px, 8vw, 140px); font-weight: 600; letter-spacing: -0.05em; line-height: 1; font-variant-numeric: tabular-nums; }
+  .avg small { font-size: .3em; color: var(--faint); letter-spacing: 0; font-weight: 500; }
+  .cols { flex: 1; display: grid; gap: 1vw; align-items: end; margin-top: 4vh; min-height: 120px; max-height: 40vh; }
+  .col { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 8px; }
+  .col .c { font-size: clamp(12px, 1vw, 16px); color: var(--muted); font-variant-numeric: tabular-nums; }
+  .col .b { width: 100%; background: var(--fg); border-radius: 8px 8px 2px 2px; height: 0; transition: height .6s cubic-bezier(.2,.8,.2,1); min-height: 2px; }
+  .col .x { font-size: clamp(14px, 1.2vw, 20px); font-weight: 500; font-variant-numeric: tabular-nums; }
+
+  .empty { color: var(--faint); font-size: clamp(18px, 1.6vw, 26px); }
+  .nav { display: flex; justify-content: space-between; align-items: center; margin-top: 3vh; }
+  .dots { display: flex; gap: 8px; }
+  .dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--line); cursor: pointer; }
+  .dots i.on { background: var(--fg); }
+  .keys { color: var(--faint); font-size: 12px; }
+  .nav .btns { display: flex; gap: 8px; }
+  .live { display: inline-flex; align-items: center; gap: 6px; }
+  .live::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #22a35a; }
+  .live.off::before { background: var(--faint); }
+  .login { max-width: 360px; margin: 20vh auto; padding: 0 20px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+(() => {
+  const id = location.pathname.split('/').filter(Boolean)[1];
+  const root = document.getElementById('root');
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  let data = null, cur = 0, showQr = true, es = null, qrSvg = '';
+  const fmt = n => n == null ? '–' : (Math.round(n * 10) / 10).toLocaleString('nl-BE', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+  async function boot() {
+    const me = await fetch('/api/me').then(r => r.json());
+    if (!me.admin) return location.href = '/admin?next=' + encodeURIComponent(location.pathname);
+    const info = await fetch(`/api/polls/${id}`).then(r => r.ok ? r.json() : null);
+    if (!info) { root.innerHTML = '<div class="login"><h1>Niet gevonden</h1></div>'; return; }
+    qrSvg = await fetch(`/api/polls/${id}/qr.svg`).then(r => r.text());
+    shell(info.url);
+    connect();
+  }
+
+  function shell(url) {
+    root.innerHTML = `
+    <div class="stage" id="stage">
+      <section class="left">
+        <div class="call">Scan om mee te doen</div>
+        <div class="qr">${qrSvg}</div>
+        <div class="url">${esc(url.replace(/^https?:\/\//, ''))}</div>
+        <div class="count" id="count">0</div>
+        <div class="count-l">deelnemers</div>
+        <div id="closed"></div>
+      </section>
+      <section class="right">
+        <div class="top"><div class="title" id="title"></div><div class="qnum" id="qnum"></div></div>
+        <h1 class="q" id="q"></h1>
+        <div class="res" id="res"></div>
+        <div class="nav">
+          <div class="dots" id="dots"></div>
+          <div class="keys"><span class="live" id="live">live</span> &nbsp;·&nbsp; ← → vraag &nbsp;·&nbsp; Q qr-code &nbsp;·&nbsp; F volledig scherm</div>
+        </div>
+      </section>
+    </div>`;
+  }
+
+  function connect() {
+    es = new EventSource(`/api/polls/${id}/stream`);
+    es.onmessage = e => { data = JSON.parse(e.data); draw(); };
+    es.onopen = () => document.getElementById('live')?.classList.remove('off');
+    es.onerror = () => document.getElementById('live')?.classList.add('off');
+  }
+
+  function draw() {
+    if (!data) return;
+    const qs = data.questions;
+    cur = Math.max(0, Math.min(cur, qs.length - 1));
+    document.getElementById('count').textContent = data.total;
+    document.getElementById('closed').innerHTML = data.is_open ? '' : '<span class="closed">Stemmen gesloten</span>';
+    document.getElementById('title').textContent = data.title;
+    document.getElementById('qnum').textContent = `Vraag ${cur + 1} / ${qs.length}`;
+    document.getElementById('dots').innerHTML = qs.map((_, i) => `<i class="${i === cur ? 'on' : ''}" data-i="${i}"></i>`).join('');
+    document.querySelectorAll('#dots i').forEach(d => d.onclick = () => { cur = +d.dataset.i; draw(); });
+
+    const q = qs[cur];
+    const $q = document.getElementById('q');
+    const $res = document.getElementById('res');
+    const sameQ = $res.dataset.qid === String(q.id);
+    $q.textContent = q.text;
+
+    if (!q.answered) { $res.dataset.qid = q.id; $res.innerHTML = '<div class="empty">Nog geen antwoorden</div>'; return; }
+
+    if (q.type === 'single' || q.type === 'multi') {
+      const base = q.answered; // % of respondents
+      const max = Math.max(...q.options.map(o => o.count));
+      const rows = q.options.map((o, i) => ({ ...o, i }));
+      bars($res, q.id, sameQ, rows.map(o => ({
+        key: o.i, label: o.label, rk: '', lead: o.count === max && max > 0,
+        val: `${Math.round(o.count / base * 100)}% <span style="color:var(--faint)">· ${o.count}</span>`,
+        pct: max ? o.count / max * 100 : 0,
+      })));
+    } else if (q.type === 'scale') {
+      const max = Math.max(...q.distribution, 1);
+      if (!sameQ || !$res.querySelector('.cols')) {
+        $res.dataset.qid = q.id;
+        $res.innerHTML = `<div class="scale-wrap"><div class="avg" id="avg"></div>
+          <div class="cols" style="grid-template-columns:repeat(${q.scale_max},1fr)">${q.distribution.map((_, i) =>
+            `<div class="col"><span class="c"></span><div class="b"></div><span class="x">${i + 1}</span></div>`).join('')}</div></div>`;
+      }
+      document.getElementById('avg').innerHTML = `${fmt(q.average)}<small> / ${q.scale_max} gemiddeld</small>`;
+      const cols = $res.querySelectorAll('.col');
+      requestAnimationFrame(() => q.distribution.forEach((n, i) => {
+        cols[i].querySelector('.c').textContent = n;
+        cols[i].querySelector('.b').style.height = (n / max * 100) + '%';
+      }));
+    } else {
+      const top = q.items[0]?.points || 0;
+      bars($res, q.id, sameQ, q.items.map((it, k) => ({
+        key: it.label, label: it.label, rk: k + 1, lead: k === 0 && top > 0,
+        val: `gem. plaats ${fmt(it.avg_position)}`,
+        pct: top ? it.points / top * 100 : 0,
+      })), true);
+    }
+  }
+
+  // bar list with in-place updates (and FLIP reordering for rankings)
+  function bars($res, qid, sameQ, rows, reorder) {
+    if (!sameQ || !$res.querySelector('.bar-row')) {
+      $res.dataset.qid = qid;
+      $res.innerHTML = rows.map(r => `<div class="bar-row" data-k="${esc(r.key)}"><div class="lbl"><span class="rk"></span><span></span></div><div class="val"></div><div class="track"><div class="fill"></div></div></div>`).join('');
+    }
+    const els = new Map([...$res.querySelectorAll('.bar-row')].map(e => [e.dataset.k, e]));
+    const first = new Map([...els].map(([k, e]) => [k, e.getBoundingClientRect().top]));
+    rows.forEach(r => {
+      const e = els.get(String(r.key));
+      e.classList.toggle('lead', r.lead);
+      e.querySelector('.rk').textContent = r.rk;
+      e.querySelector('.rk').style.display = reorder ? '' : 'none';
+      e.querySelector('.lbl span:last-child').textContent = r.label;
+      e.querySelector('.val').innerHTML = r.val;
+      if (reorder) $res.appendChild(e);
+    });
+    if (reorder) els.forEach((e, k) => {
+      const d = first.get(k) - e.getBoundingClientRect().top;
+      if (d) { e.style.transition = 'none'; e.style.transform = `translateY(${d}px)`; requestAnimationFrame(() => { e.style.transition = 'transform .5s cubic-bezier(.2,.8,.2,1)'; e.style.transform = ''; }); }
+    });
+    requestAnimationFrame(() => rows.forEach(r => els.get(String(r.key)).querySelector('.fill').style.width = r.pct + '%'));
+  }
+
+  document.addEventListener('keydown', e => {
+    if (!data) return;
+    if (['ArrowRight', 'ArrowDown', 'PageDown', ' '].includes(e.key)) { cur = Math.min(cur + 1, data.questions.length - 1); draw(); e.preventDefault(); }
+    else if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(e.key)) { cur = Math.max(cur - 1, 0); draw(); e.preventDefault(); }
+    else if (e.key.toLowerCase() === 'q') { showQr = !showQr; document.getElementById('stage').classList.toggle('noqr', !showQr); }
+    else if (e.key.toLowerCase() === 'f') { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen?.(); }
+  });
+
+  boot();
+})();
+</script>
+</body>
+</html>
