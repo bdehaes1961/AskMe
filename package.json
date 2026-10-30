@@ -1,0 +1,15 @@
+{
+  "name": "askme",
+  "version": "1.0.0",
+  "description": "AskMe — live voting PWA",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^13.0.3",
+    "express": "^5.3.0",
+    "qrcode": "^1.5.4"
+  },
+  "private": true
+}
