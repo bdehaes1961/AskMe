@@ -127,12 +127,12 @@
 
   async function load() {
     try {
-      const r = await fetch(`/api/public/${encodeURIComponent(pollId)}`, { cache: 'no-store' });
+      const r = await fetch(`/api/public/${encodeURIComponent(pollId)}?voter=${encodeURIComponent(voter)}`, { cache: 'no-store' });
       const data = await r.json();
       if (!r.ok) return message('Niet gevonden', data.error);
       poll = data;
       document.title = poll.title + ' · AskMe';
-      if (store.get('askme:done:' + poll.id)) return message('Bedankt', 'Je antwoorden zijn al ontvangen.', true);
+      if (poll.voted) return message('Bedankt', 'Je antwoorden zijn al ontvangen.', true);
       if (!poll.is_open) return message('Gesloten', 'Stemmen is (nog) niet mogelijk voor deze vragenlijst.');
       intro();
     } catch {
