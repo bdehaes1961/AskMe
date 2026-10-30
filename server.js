@@ -300,7 +300,7 @@ app.get('/api/polls/:id/stream', requireAdmin, (req, res) => {
 
 app.get('/api/polls/:id/qr.svg', requireAdmin, async (req, res) => {
   const url = `${baseUrl(req)}/p/${req.params.id}`;
-  const svg = await QRCode.toString(url, { type: 'svg', margin: 0, errorCorrectionLevel: 'M', color: { dark: '#0a0a0a', light: '#ffffff' } });
+  const svg = await QRCode.toString(url, { type: 'svg', margin: 0, errorCorrectionLevel: 'M', color: { dark: '#404040', light: '#ffffff' } });
   res.type('image/svg+xml').send(svg);
 });
 
