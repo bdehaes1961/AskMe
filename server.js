@@ -191,7 +191,7 @@ app.post('/api/login', (req, res) => {
   }
   loginAttempts.delete(ip);
   const secure = baseUrl(req).startsWith('https') ? '; Secure' : '';
-  res.setHeader('Set-Cookie', `askme_session=${SESSION_VALUE}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${60 * 60 * 24 * 30}${secure}`);
+  res.setHeader('Set-Cookie', `askme_session=${SESSION_VALUE}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${60 * 60 * 24 * 365}${secure}`);
   res.json({ ok: true });
 });
 app.post('/api/logout', (req, res) => {
